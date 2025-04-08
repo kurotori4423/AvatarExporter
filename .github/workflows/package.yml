@@ -22,8 +22,8 @@ jobs:
           BLENDER_DIR="$PWD/blender-4.2.0-linux-x64"
           echo "Adding to GITHUB_PATH: ${BLENDER_DIR}" # Debug print
           echo "${BLENDER_DIR}" >> $GITHUB_PATH
-          echo "Blender version:"
-          blender --version
+          # echo "Blender version:" # Removed version check as GITHUB_PATH applies to subsequent steps
+          # blender --version
 
       # 3. アドオン用ZIPパッケージの生成
       - name: Create ZIP package for add-on
