@@ -43,9 +43,12 @@ jobs:
       - name: Generate index.json with Blender
         run: |
           echo "Current PATH in Step 5: $PATH" # Debug print
-          # Blenderのコマンドラインを呼び出して、ZIPファイルを元に index.json を生成する
-          blender --background --factory-startup --command extension server-generate --repo-dir=$(pwd)/repo
-          ls -l repo/index.json
+          BASE_URL="https://kurotori4423.github.io/AvatarExporter/"
+          echo "Generating index.json with base URL: ${BASE_URL}"
+          # Blenderのコマンドラインを呼び出して、ZIPファイルを元に index.json と index.html を生成する
+          blender --background --factory-startup --command extension server-generate --repo-dir=$(pwd)/repo --base-url=${BASE_URL} --html
+          echo "Generated files in repo directory:"
+          ls -l repo/
 
       # 6. 成果物（ZIPファイルと index.json）のアップロード（オプション）
       - name: Upload package and index as artifacts
@@ -74,3 +77,14 @@ jobs:
             repo/index.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 9. Deploy generated files to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo # Deploy the contents of the repo directory
+          # Optional: specify the branch to deploy to (defaults to gh-pages)
+          # publish_branch: gh-pages
+          # Optional: specify a commit message
+          # commit_message: 'Deploy extension repository files for ${{ github.ref }}'
