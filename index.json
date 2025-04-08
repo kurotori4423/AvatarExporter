@@ -7,7 +7,7 @@
       "id": "kurotori_avatar_exporter",
       "name": "Kurotori Avatar Exporter",
       "tagline": "FBX Exporter batch for kurotori workflow",
-      "version": "1.0.0",
+      "version": "1.0.9",
       "type": "add-on",
       "maintainer": "kurotori4423@gmail.com",
       "license": [
@@ -19,8 +19,8 @@
         "Sequencer"
       ],
       "archive_url": "./addon.zip",
-      "archive_size": 4774,
-      "archive_hash": "sha256:d09897250a5e910ec96d690cb4e1fead3d0eb2666fbac20bb66af2924a78c73e"
+      "archive_size": 5558,
+      "archive_hash": "sha256:66a7b7588a7dfc9465810bf0299c62c7e730b55b9d47d20bb5234345328e76c6"
     }
   ]
 }
