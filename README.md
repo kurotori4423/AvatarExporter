@@ -1,6 +1,6 @@
 # Kurotori Avatar Exporter
 
-[English Version](README_en.md)
+[English](README_en.md)
 
 ## 概要
 
