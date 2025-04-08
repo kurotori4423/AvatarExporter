@@ -8,6 +8,9 @@ Kurotori Avatar Exporter は、Blenderからアバター（キャラクターモ
 
 Blender 4.2.0 以降が必要です。
 
+<img width="751" alt="image" src="https://github.com/user-attachments/assets/3d5795b3-8ede-4332-a46f-35b05043f24d" />
+
+
 ## 主な機能
 
 *   **エクスポートジョブの管理:**
