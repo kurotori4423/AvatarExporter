@@ -14,13 +14,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Blender 4.4 のダウンロードと展開
-      - name: Download Blender 4.4 for Linux
+      # 2. Blender 4.2.0 のダウンロードと展開
+      - name: Download Blender 4.2.0 for Linux
         run: |
-          wget https://download.blender.org/release/Blender4.4/blender-4.4-linux-x64.tar.xz
-          tar -xf blender-4.4-linux-x64.tar.xz
+          wget https://download.blender.org/release/Blender4.2/blender-4.2.0-linux-x64.tar.xz
+          tar -xf blender-4.2.0-linux-x64.tar.xz
           # 以下のディレクトリ・ファイル名はダウンロードしたアーカイブの構成に合わせて調整してください
-          export PATH="$PWD/blender-4.4-linux-x64:$PATH"
+          export PATH="$PWD/blender-4.2.0-linux-x64:$PATH"
           echo "Blender version:"
           blender --version
 
