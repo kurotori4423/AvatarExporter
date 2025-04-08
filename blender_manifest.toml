@@ -3,7 +3,7 @@ schema_version = "1.0.0"
 # Example of manifest file for a Blender extension
 # Change the values according to your extension
 id = "kurotori_avatar_exporter"
-version = "1.0.9"
+version = "1.1.0"
 name = "Kurotori Avatar Exporter"
 tagline = "FBX Exporter batch for kurotori workflow"
 maintainer = "kurotori4423@gmail.com"
