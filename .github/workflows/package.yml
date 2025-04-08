@@ -1,0 +1,72 @@
+name: Package Blender Add-on with index.json
+
+# タグ（例: v1.0.0）のプッシュで実行
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. ソースコードのチェックアウト
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Blender 4.4 のダウンロードと展開
+      - name: Download Blender 4.4 for Linux
+        run: |
+          wget https://download.blender.org/release/Blender4.4/blender-4.4-linux-x64.tar.xz
+          tar -xf blender-4.4-linux-x64.tar.xz
+          # 以下のディレクトリ・ファイル名はダウンロードしたアーカイブの構成に合わせて調整してください
+          export PATH="$PWD/blender-4.4-linux-x64:$PATH"
+          echo "Blender version:"
+          blender --version
+
+      # 3. アドオン用ZIPパッケージの生成
+      - name: Create ZIP package for add-on
+        run: |
+          # 必要なファイルのみをZIPに含める
+          zip addon.zip __init__.py blender_manifest.toml
+
+      # 4. index.json生成用のリポジトリフォルダを準備し、ZIPファイルを配置
+      - name: Prepare repository folder for index generation
+        run: |
+          mkdir repo
+          cp addon.zip repo/
+
+      # 5. Blenderを利用して index.json を生成
+      - name: Generate index.json with Blender
+        run: |
+          # Blenderのコマンドラインを呼び出して、ZIPファイルを元に index.json を生成する
+          blender --background --factory-startup --command extension server-generate --repo-dir=$(pwd)/repo
+          ls -l repo/index.json
+
+      # 6. 成果物（ZIPファイルと index.json）のアップロード（オプション）
+      - name: Upload package and index as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: addon-package-and-index
+          path: |
+            addon.zip
+            repo/index.json
+
+      # 7. GitHub Releaseの作成
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 8. リリースアセットとしてZIPファイルと index.json をアップロード
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            addon.zip
+            repo/index.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

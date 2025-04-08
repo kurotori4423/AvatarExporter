@@ -61,8 +61,9 @@ class AvatarExportSetting(bpy.types.PropertyGroup):
     export_meshes: bpy.props.CollectionProperty(type=MeshList)
     export_meshes_index: bpy.props.IntProperty(name="Export Mesh Index", default=0)
 
-    exclude_bones: bpy.props.CollectionProperty(type=BoneList)
-    exclude_bones_index: bpy.props.IntProperty(name="Active Exclude Bone Index", default=0)
+    # 「exclude_bones」を「include_bones」に変更
+    include_bones: bpy.props.CollectionProperty(type=BoneList)
+    include_bones_index: bpy.props.IntProperty(name="Active Include Bone Index", default=0)
     show_expended: bpy.props.BoolProperty(name="Show Expended", default=True) 
 
 class AvatarExporterPanel(bpy.types.Panel):
@@ -95,26 +96,24 @@ class AvatarExporterPanel(bpy.types.Panel):
                 box2.prop(setting, 'reset_shapekey')
                 box2.prop(setting, 'armature')
 
-                # アーマチュアが設定されていたら選択したボーンを除外ボーンに指定する設定を表示する
+                # アーマチュアが設定されていたら、包含ボーンリストの設定を表示する
                 if setting.armature:
                     col = box2.column()
-                    col.label(text="Exclude Bone List", text_ctxt="")
+                    col.label(text="Include Bone List", text_ctxt="")
                     row = col.row()
-                    op = row.operator('avtsetting.set_exclude_bone', icon='BONE_DATA', text="Set Active Bone")
+                    op = row.operator('avtsetting.set_include_bone', icon='BONE_DATA', text="Set Active Bone")
                     op.index = index
-                    op = row.operator('avtsetting.clear_exclude_bone', icon='TRASH', text="Clear List")
+                    op = row.operator('avtsetting.clear_include_bone', icon='TRASH', text="Clear List")
                     op.index = index
 
-                    if setting.exclude_bones and len(setting.exclude_bones) > 0:
-                        col.template_list("AVTSETTING_UL_BoneList", "AVTSETTING_UL_BoneList_" + str(index), setting, 'exclude_bones', setting, 'exclude_bones_index')
+                    if setting.include_bones and len(setting.include_bones) > 0:
+                        col.template_list("AVTSETTING_UL_BoneList", "AVTSETTING_UL_BoneList_" + str(index), setting, 'include_bones', setting, 'include_bones_index')
 
                 col = box2.column()
-
                 op = col.operator('avtsetting.set_export_meshes', icon='OUTLINER_OB_MESH', text="Set Export Mesh")
                 op.index = index
                 col.template_list("AVTSETTING_UL_MeshList", "AVTSETTING_UL_MeshList_" + str(index), setting, 'export_meshes', setting, 'export_meshes_index')
                 
-                   
 
 class AVTSETTING_OT_NewItem(bpy.types.Operator):
     bl_idname="avtsetting.new_item"
@@ -136,6 +135,7 @@ class AVTSETTING_OT_DeleteItem(bpy.types.Operator):
         scene = context.scene
         scene.avatar_export_setting_list.remove(self.index)
         return {'FINISHED'}
+
 def get_all_layer_collections(layer_collection, collections_list):
         """再帰的にレイヤーコレクションをリストに追加する関数"""
         collections_list.append(layer_collection)
@@ -148,8 +148,6 @@ class AVTSETTING_OT_StartExportJob(bpy.types.Operator):
 
     index: bpy.props.IntProperty(options={'HIDDEN'})
     
-    
-
     def execute(self, context: Context):
         setting = context.scene.avatar_export_setting_list[self.index]
 
@@ -189,7 +187,6 @@ class AVTSETTING_OT_StartExportJob(bpy.types.Operator):
             obj.hide_viewport = True
             obj.hide_set(False)
 
-        
 
         # ボーンのデフォームを変更する
 
@@ -198,13 +195,13 @@ class AVTSETTING_OT_StartExportJob(bpy.types.Operator):
         for bone in setting.armature.data.bones:
             bone_deform_states[bone.name] = bone.use_deform
         
-        # 設定のデフォーム状態に設定
+        # include_bonesに含まれたボーンのみTrue、それ以外はFalse
+        include_bone_names = [b.name for b in setting.include_bones]
         for bone in setting.armature.data.bones:
-
-            if any(excludeBone.name == bone.name for excludeBone in setting.exclude_bones):
-                bone.use_deform = False
-            else:
+            if bone.name in include_bone_names:
                 bone.use_deform = True
+            else:
+                bone.use_deform = False
 
         setting.armature.hide_viewport = False
         
@@ -219,7 +216,6 @@ class AVTSETTING_OT_StartExportJob(bpy.types.Operator):
                         key_block.value = 0.0
 
         # FBXでエクスポート
-
         bpy.ops.export_scene.fbx(
             filepath= filepath,
             check_existing=False,
@@ -230,7 +226,6 @@ class AVTSETTING_OT_StartExportJob(bpy.types.Operator):
             use_armature_deform_only=True, # デフォームボーンのみ
             add_leaf_bones=False, # リーフボーンオフ
             bake_anim=False, #アニメーションはエクスポートしない
-            # use_triangles=True #三角面化
         )
 
         # デフォーム状態を変更前に元に戻す
@@ -252,12 +247,12 @@ class AVTSETTING_OT_StartExportJob(bpy.types.Operator):
         for obj, hide_viewport in layer_object_visible.items():
             obj.hide_set(hide_viewport)
         
-
         return {'FINISHED'}
 
-class AVTSETTING_OT_SetExcludeBones(bpy.types.Operator):
-    bl_idname="avtsetting.set_exclude_bone"
-    bl_label="Add Exclude Bone"
+# 「Exclude Bone」を「Include Bone」に変更
+class AVTSETTING_OT_SetIncludeBones(bpy.types.Operator):
+    bl_idname="avtsetting.set_include_bone"
+    bl_label="Add Include Bone"
 
     index: bpy.props.IntProperty(options={'HIDDEN'})
 
@@ -274,22 +269,22 @@ class AVTSETTING_OT_SetExcludeBones(bpy.types.Operator):
         else:
             return {'FINISHED'}
 
-        scene.avatar_export_setting_list[self.index].exclude_bones.clear()
+        scene.avatar_export_setting_list[self.index].include_bones.clear()
 
         for bone in selected_bones:
-            boneName = scene.avatar_export_setting_list[self.index].exclude_bones.add()
+            boneName = scene.avatar_export_setting_list[self.index].include_bones.add()
             boneName.name = bone.name
         return {'FINISHED'}
 
-class AVTSETTING_OT_ClearExcludeBones(bpy.types.Operator):
-    bl_idname="avtsetting.clear_exclude_bone"
-    bl_label="Clear Exclude Bone"
+class AVTSETTING_OT_ClearIncludeBones(bpy.types.Operator):
+    bl_idname="avtsetting.clear_include_bone"
+    bl_label="Clear Include Bone"
 
     index: bpy.props.IntProperty(options={'HIDDEN'})
 
     def execute(self, context: Context):
         scene = context.scene
-        scene.avatar_export_setting_list[self.index].exclude_bones.clear()
+        scene.avatar_export_setting_list[self.index].include_bones.clear()
         return{'FINISHED'}
 
 class AVTSETTING_OT_SetExportMeshes(bpy.types.Operator):
@@ -324,8 +319,8 @@ def register():
     bpy.utils.register_class(AVTSETTING_UL_MeshList)
     bpy.utils.register_class(AVTSETTING_OT_DeleteItem)
     bpy.utils.register_class(AVTSETTING_OT_StartExportJob)
-    bpy.utils.register_class(AVTSETTING_OT_SetExcludeBones)
-    bpy.utils.register_class(AVTSETTING_OT_ClearExcludeBones)
+    bpy.utils.register_class(AVTSETTING_OT_SetIncludeBones)
+    bpy.utils.register_class(AVTSETTING_OT_ClearIncludeBones)
     bpy.utils.register_class(AVTSETTING_OT_SetExportMeshes)
     bpy.types.Scene.avatar_export_setting_list = bpy.props.CollectionProperty(type=AvatarExportSetting)
     bpy.types.Scene.avatar_export_setting_properties = bpy.props.PointerProperty(type=AvatarExportSetting)
@@ -340,8 +335,8 @@ def unregister():
     bpy.utils.unregister_class(AVTSETTING_UL_MeshList)
     bpy.utils.unregister_class(AVTSETTING_OT_DeleteItem)
     bpy.utils.unregister_class(AVTSETTING_OT_StartExportJob)
-    bpy.utils.unregister_class(AVTSETTING_OT_SetExcludeBones)
-    bpy.utils.unregister_class(AVTSETTING_OT_ClearExcludeBones)
+    bpy.utils.unregister_class(AVTSETTING_OT_SetIncludeBones)
+    bpy.utils.unregister_class(AVTSETTING_OT_ClearIncludeBones)
     bpy.utils.unregister_class(AVTSETTING_OT_SetExportMeshes)
     del bpy.types.Scene.avatar_export_setting_list
     del bpy.types.Scene.avatar_export_setting_properties
