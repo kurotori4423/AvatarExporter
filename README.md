@@ -1,5 +1,7 @@
 # Kurotori Avatar Exporter
 
+[English Version](README_en.md)
+
 ## 概要
 
 Kurotori Avatar Exporter は、Blenderからアバター（キャラクターモデル）をFBX形式で効率的にエクスポートするためのアドオンです。特定のワークフロー（kurotori workflow）向けに設計されており、複数のエクスポート設定（ジョブ）を管理し、バッチ処理のようにエクスポートを実行できます。
