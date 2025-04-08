@@ -19,8 +19,9 @@ jobs:
         run: |
           wget https://download.blender.org/release/Blender4.2/blender-4.2.0-linux-x64.tar.xz
           tar -xf blender-4.2.0-linux-x64.tar.xz
-          # 以下のディレクトリ・ファイル名はダウンロードしたアーカイブの構成に合わせて調整してください
-          echo "$PWD/blender-4.2.0-linux-x64" >> $GITHUB_PATH
+          BLENDER_DIR="$PWD/blender-4.2.0-linux-x64"
+          echo "Adding to GITHUB_PATH: ${BLENDER_DIR}" # Debug print
+          echo "${BLENDER_DIR}" >> $GITHUB_PATH
           echo "Blender version:"
           blender --version
 
@@ -39,6 +40,7 @@ jobs:
       # 5. Blenderを利用して index.json を生成
       - name: Generate index.json with Blender
         run: |
+          echo "Current PATH in Step 5: $PATH" # Debug print
           # Blenderのコマンドラインを呼び出して、ZIPファイルを元に index.json を生成する
           blender --background --factory-startup --command extension server-generate --repo-dir=$(pwd)/repo
           ls -l repo/index.json
