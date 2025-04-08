@@ -45,7 +45,7 @@ jobs:
 
       # 6. 成果物（ZIPファイルと index.json）のアップロード（オプション）
       - name: Upload package and index as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: addon-package-and-index
           path: |
