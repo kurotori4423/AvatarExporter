@@ -20,7 +20,7 @@ jobs:
           wget https://download.blender.org/release/Blender4.2/blender-4.2.0-linux-x64.tar.xz
           tar -xf blender-4.2.0-linux-x64.tar.xz
           # 以下のディレクトリ・ファイル名はダウンロードしたアーカイブの構成に合わせて調整してください
-          export PATH="$PWD/blender-4.2.0-linux-x64:$PATH"
+          echo "$PWD/blender-4.2.0-linux-x64" >> $GITHUB_PATH
           echo "Blender version:"
           blender --version
 
