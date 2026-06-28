@@ -1,3 +1,21 @@
 blender_env/*
 etc/*
 .vscode/
+
+# Python のバイトコードとキャッシュをコミット対象から外す。
+__pycache__/
+*.py[cod]
+
+# uv venv によるローカル仮想環境を無視する。
+.venv/
+
+# テストや静的解析で生成されるキャッシュを無視する。
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+
+# エディタや OS が自動生成するローカルファイルを無視する。
+.idea/
+.DS_Store
+Thumbs.db
