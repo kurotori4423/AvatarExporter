@@ -38,13 +38,11 @@ class AVTSETTING_UL_JobList(bpy.types.UIList):
     """多数のジョブを扱ってもパネル全体が伸びないように、設定単位を一覧表示するUIです。"""
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        """ジョブ名を主情報にして、行内から直接削除とエクスポートを実行できるように描画します。"""
+        """ジョブ名を主情報にして、選択とエクスポートを同じ行で扱えるように描画します。"""
         setting = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
             row.prop(setting, 'name', text="", emboss=False)
-            op = row.operator('avtsetting.delete_item', icon='TRASH', text="")
-            op.index = index
             op = row.operator('avtsetting.start_export_job', icon='EXPORT', text="")
             op.index = index
         elif self.layout_type in {'GRID'}:
@@ -142,14 +140,11 @@ class AvatarExporterPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
-        layout.operator("avtsetting.new_item", icon='ADD', text="Add Job")
-
         job_count = len(scene.avatar_export_setting_list)
-        if job_count == 0:
-            layout.label(text="No export jobs.", icon='INFO')
-            return
+        selected_index = min(max(scene.avatar_export_setting_index, 0), max(job_count - 1, 0))
 
-        layout.template_list(
+        row = layout.row()
+        row.template_list(
             "AVTSETTING_UL_JobList",
             "AVTSETTING_UL_JobList",
             scene,
@@ -159,7 +154,20 @@ class AvatarExporterPanel(bpy.types.Panel):
             rows=5,
         )
 
-        selected_index = min(max(scene.avatar_export_setting_index, 0), job_count - 1)
+        col = row.column(align=True)
+        col.operator("avtsetting.new_item", icon='ADD', text="")
+        op = col.operator("avtsetting.delete_item", icon='REMOVE', text="")
+        op.index = selected_index
+        col.separator()
+        op = col.operator("avtsetting.move_item", icon='TRIA_UP', text="")
+        op.direction = 'UP'
+        op = col.operator("avtsetting.move_item", icon='TRIA_DOWN', text="")
+        op.direction = 'DOWN'
+
+        if job_count == 0:
+            layout.label(text="No export jobs.", icon='INFO')
+            return
+
         self.draw_setting_detail(layout, scene.avatar_export_setting_list[selected_index], selected_index)
 
 
@@ -236,6 +244,45 @@ class AVTSETTING_OT_DeleteItem(bpy.types.Operator):
             scene.avatar_export_setting_index = active_index - 1
         else:
             scene.avatar_export_setting_index = min(active_index, job_count - 1)
+        return {'FINISHED'}
+
+class AVTSETTING_OT_MoveItem(bpy.types.Operator):
+    """選択中ジョブを上下に移動し、表示順と実行対象の整理を可能にします。"""
+
+    bl_idname="avtsetting.move_item"
+    bl_label="Move Item"
+
+    direction: bpy.props.EnumProperty(
+        name="Direction",
+        items=[
+            ('UP', "Up", "Move the active export job up"),
+            ('DOWN', "Down", "Move the active export job down"),
+        ],
+        options={'HIDDEN'},
+    )
+
+    def execute(self, context):
+        """境界外へ移動しないようにしつつ、CollectionProperty上の順序を入れ替えます。"""
+        scene = context.scene
+        job_count = len(scene.avatar_export_setting_list)
+        if job_count <= 1:
+            return {'CANCELLED'}
+
+        old_index = scene.avatar_export_setting_index
+        if old_index < 0 or old_index >= job_count:
+            self.report({'WARNING'}, "Export job not found.")
+            return {'CANCELLED'}
+
+        if self.direction == 'UP':
+            new_index = old_index - 1
+        else:
+            new_index = old_index + 1
+
+        if new_index < 0 or new_index >= job_count:
+            return {'CANCELLED'}
+
+        scene.avatar_export_setting_list.move(old_index, new_index)
+        scene.avatar_export_setting_index = new_index
         return {'FINISHED'}
 
 def get_all_layer_collections(layer_collection, collections_list):
@@ -453,6 +500,7 @@ def register():
     bpy.utils.register_class(AvatarExporterPanel)
     bpy.utils.register_class(AVTSETTING_OT_NewItem)
     bpy.utils.register_class(AVTSETTING_OT_DeleteItem)
+    bpy.utils.register_class(AVTSETTING_OT_MoveItem)
     bpy.utils.register_class(AVTSETTING_OT_StartExportJob)
     bpy.utils.register_class(AVTSETTING_OT_SetIncludeBones)
     bpy.utils.register_class(AVTSETTING_OT_ClearIncludeBones)
@@ -473,6 +521,7 @@ def unregister():
     bpy.utils.unregister_class(AVTSETTING_OT_ClearIncludeBones)
     bpy.utils.unregister_class(AVTSETTING_OT_SetIncludeBones)
     bpy.utils.unregister_class(AVTSETTING_OT_StartExportJob)
+    bpy.utils.unregister_class(AVTSETTING_OT_MoveItem)
     bpy.utils.unregister_class(AVTSETTING_OT_DeleteItem)
     bpy.utils.unregister_class(AVTSETTING_OT_NewItem)
     bpy.utils.unregister_class(AvatarExporterPanel)
