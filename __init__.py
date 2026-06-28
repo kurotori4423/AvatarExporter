@@ -34,6 +34,23 @@ class AVTSETTING_UL_MeshList(bpy.types.UIList):
             layout.alignment = 'CENTER'
             layout.label(text="", icon='OUTLINER_OB_MESH', translate=False)
 
+class AVTSETTING_UL_JobList(bpy.types.UIList):
+    """多数のジョブを扱ってもパネル全体が伸びないように、設定単位を一覧表示するUIです。"""
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        """ジョブ名を主情報にして、行内から直接削除とエクスポートを実行できるように描画します。"""
+        setting = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row(align=True)
+            row.prop(setting, 'name', text="", emboss=False)
+            op = row.operator('avtsetting.delete_item', icon='TRASH', text="")
+            op.index = index
+            op = row.operator('avtsetting.start_export_job', icon='EXPORT', text="")
+            op.index = index
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon='PRESET')
+
 # ボーンリスト用のプロパティグループ
 class BoneList(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(name="")
@@ -69,55 +86,81 @@ class AvatarExportSetting(bpy.types.PropertyGroup):
     show_expended: bpy.props.BoolProperty(name="Show Expended", default=True)
 
 class AvatarExporterPanel(bpy.types.Panel):
+    """Avatar Exporterのジョブ一覧と選択中ジョブの詳細設定を表示します。"""
+
     bl_label="Avatar Exporter"
     bl_idname="VIEW3D_PT_avatar_exporter_panel"
     bl_space_type='VIEW_3D'
     bl_region_type='UI'
     bl_category='Avatar Exporter'
 
+    def draw_setting_detail(self, layout, setting, index):
+        """選択中ジョブだけを編集対象として表示し、一覧のスクロール領域から詳細を分離します。"""
+        box = layout.box()
+        box.prop(setting, 'name', text="Job Name")
+
+        row = box.row(align=True)
+        row.prop(setting, 'file_path', text="Output Dir")
+        op = row.operator('avtsetting.open_output_dir', icon='FILEBROWSER', text="")
+        op.index = index
+        box.prop(setting, 'reset_shapekey')
+        box.prop(setting, 'armature')
+
+        # アーマチュアが設定されている場合のみ、実際に指定可能なボーン一覧を表示します。
+        if setting.armature:
+            col = box.column()
+            col.label(text="Include Bone List", text_ctxt="")
+            row = col.row()
+            op = row.operator('avtsetting.set_include_bone', icon='BONE_DATA', text="Set Active Bone")
+            op.index = index
+            op = row.operator('avtsetting.clear_include_bone', icon='TRASH', text="Clear List")
+            op.index = index
+
+            if setting.include_bones and len(setting.include_bones) > 0:
+                col.template_list(
+                    "AVTSETTING_UL_BoneList",
+                    "AVTSETTING_UL_BoneList_" + str(index),
+                    setting,
+                    'include_bones',
+                    setting,
+                    'include_bones_index',
+                )
+
+        col = box.column()
+        op = col.operator('avtsetting.set_export_meshes', icon='OUTLINER_OB_MESH', text="Set Export Mesh")
+        op.index = index
+        col.template_list(
+            "AVTSETTING_UL_MeshList",
+            "AVTSETTING_UL_MeshList_" + str(index),
+            setting,
+            'export_meshes',
+            setting,
+            'export_meshes_index',
+        )
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
-        layout.operator("avtsetting.new_item", icon='ADD',text="Add Job")
+        layout.operator("avtsetting.new_item", icon='ADD', text="Add Job")
 
-        for index, setting in enumerate(scene.avatar_export_setting_list):
-            col = layout.column(align=True)
-            box = col.box()
-            box_row = box.row()
-            icon = 'DISCLOSURE_TRI_DOWN' if setting.show_expended else 'DISCLOSURE_TRI_RIGHT'
-            box_row.prop(setting, 'show_expended', icon=icon, text="", emboss=False)
-            box_row.prop(setting, 'name', text="", expand=True)
-            op = box_row.operator('avtsetting.delete_item', icon='TRASH',text="")
-            op.index = index
-            op = box_row.operator('avtsetting.start_export_job', icon='EXPORT',text="")
-            op.index = index
-            if setting.show_expended:
-                box2 = col.box()
-                row = box2.row(align=True) # Use a row for alignment
-                row.prop(setting, 'file_path', text="Output Dir")
-                op = row.operator('avtsetting.open_output_dir', icon='FILEBROWSER', text="") # Add the button
-                op.index = index
-                box2.prop(setting, 'reset_shapekey')
-                box2.prop(setting, 'armature')
+        job_count = len(scene.avatar_export_setting_list)
+        if job_count == 0:
+            layout.label(text="No export jobs.", icon='INFO')
+            return
 
-                # アーマチュアが設定されていたら、包含ボーンリストの設定を表示する
-                if setting.armature:
-                    col = box2.column()
-                    col.label(text="Include Bone List", text_ctxt="")
-                    row = col.row()
-                    op = row.operator('avtsetting.set_include_bone', icon='BONE_DATA', text="Set Active Bone")
-                    op.index = index
-                    op = row.operator('avtsetting.clear_include_bone', icon='TRASH', text="Clear List")
-                    op.index = index
+        layout.template_list(
+            "AVTSETTING_UL_JobList",
+            "AVTSETTING_UL_JobList",
+            scene,
+            'avatar_export_setting_list',
+            scene,
+            'avatar_export_setting_index',
+            rows=5,
+        )
 
-                    if setting.include_bones and len(setting.include_bones) > 0:
-                        col.template_list("AVTSETTING_UL_BoneList", "AVTSETTING_UL_BoneList_" + str(index), setting, 'include_bones', setting, 'include_bones_index')
-
-                col = box2.column()
-                op = col.operator('avtsetting.set_export_meshes', icon='OUTLINER_OB_MESH', text="Set Export Mesh")
-                op.index = index
-                col.template_list("AVTSETTING_UL_MeshList", "AVTSETTING_UL_MeshList_" + str(index), setting, 'export_meshes', setting, 'export_meshes_index')
+        selected_index = min(max(scene.avatar_export_setting_index, 0), job_count - 1)
+        self.draw_setting_detail(layout, scene.avatar_export_setting_list[selected_index], selected_index)
 
 
 # Operator to open the output directory
@@ -161,9 +204,11 @@ class AVTSETTING_OT_NewItem(bpy.types.Operator):
     bl_label="Add New Item"
 
     def execute(self, context):
+        """新規ジョブを追加し、続けて詳細を編集できるように追加直後の項目を選択します。"""
         scene = context.scene
         newItem = scene.avatar_export_setting_list.add()
         newItem.name = "Job #" + str(len(scene.avatar_export_setting_list) - 1)
+        scene.avatar_export_setting_index = len(scene.avatar_export_setting_list) - 1
         return {'FINISHED'}
 
 class AVTSETTING_OT_DeleteItem(bpy.types.Operator):
@@ -173,8 +218,24 @@ class AVTSETTING_OT_DeleteItem(bpy.types.Operator):
     index: bpy.props.IntProperty(options={'HIDDEN'})
 
     def execute(self, context):
+        """削除後も詳細欄が存在するジョブを指すように、選択インデックスを補正します。"""
         scene = context.scene
+        job_count = len(scene.avatar_export_setting_list)
+        if self.index < 0 or self.index >= job_count:
+            self.report({'WARNING'}, "Export job not found.")
+            return {'CANCELLED'}
+
+        active_index = scene.avatar_export_setting_index
         scene.avatar_export_setting_list.remove(self.index)
+        job_count = len(scene.avatar_export_setting_list)
+        if job_count == 0:
+            scene.avatar_export_setting_index = 0
+        elif active_index == self.index:
+            scene.avatar_export_setting_index = min(self.index, job_count - 1)
+        elif active_index > self.index:
+            scene.avatar_export_setting_index = active_index - 1
+        else:
+            scene.avatar_export_setting_index = min(active_index, job_count - 1)
         return {'FINISHED'}
 
 def get_all_layer_collections(layer_collection, collections_list):
@@ -382,13 +443,15 @@ class AVTSETTING_OT_SetExportMeshes(bpy.types.Operator):
 
 
 def register():
+    """Blenderにアドオンの型とSceneプロパティを登録します。"""
     bpy.utils.register_class(BoneList)
     bpy.utils.register_class(MeshList)
     bpy.utils.register_class(AvatarExportSetting)
-    bpy.utils.register_class(AvatarExporterPanel)
-    bpy.utils.register_class(AVTSETTING_OT_NewItem)
     bpy.utils.register_class(AVTSETTING_UL_BoneList)
     bpy.utils.register_class(AVTSETTING_UL_MeshList)
+    bpy.utils.register_class(AVTSETTING_UL_JobList)
+    bpy.utils.register_class(AvatarExporterPanel)
+    bpy.utils.register_class(AVTSETTING_OT_NewItem)
     bpy.utils.register_class(AVTSETTING_OT_DeleteItem)
     bpy.utils.register_class(AVTSETTING_OT_StartExportJob)
     bpy.utils.register_class(AVTSETTING_OT_SetIncludeBones)
@@ -396,24 +459,29 @@ def register():
     bpy.utils.register_class(AVTSETTING_OT_SetExportMeshes)
     bpy.utils.register_class(AVTSETTING_OT_OpenOutputDir) # Register the new operator
     bpy.types.Scene.avatar_export_setting_list = bpy.props.CollectionProperty(type=AvatarExportSetting)
+    bpy.types.Scene.avatar_export_setting_index = bpy.props.IntProperty(name="Active Export Job Index", default=0)
     bpy.types.Scene.avatar_export_setting_properties = bpy.props.PointerProperty(type=AvatarExportSetting)
 
 def unregister():
-    bpy.utils.unregister_class(BoneList)
-    bpy.utils.unregister_class(MeshList)
-    bpy.utils.unregister_class(AvatarExportSetting)
-    bpy.utils.unregister_class(AvatarExporterPanel)
-    bpy.utils.unregister_class(AVTSETTING_OT_NewItem)
-    bpy.utils.unregister_class(AVTSETTING_UL_BoneList)
-    bpy.utils.unregister_class(AVTSETTING_UL_MeshList)
-    bpy.utils.unregister_class(AVTSETTING_OT_DeleteItem)
-    bpy.utils.unregister_class(AVTSETTING_OT_StartExportJob)
-    bpy.utils.unregister_class(AVTSETTING_OT_SetIncludeBones)
-    bpy.utils.unregister_class(AVTSETTING_OT_ClearIncludeBones)
-    bpy.utils.unregister_class(AVTSETTING_OT_SetExportMeshes)
-    bpy.utils.unregister_class(AVTSETTING_OT_OpenOutputDir) # Unregister the new operator
-    del bpy.types.Scene.avatar_export_setting_list
+    """再読み込み時に古いUI定義が残らないよう、登録と逆順で解除します。"""
     del bpy.types.Scene.avatar_export_setting_properties
+    del bpy.types.Scene.avatar_export_setting_index
+    del bpy.types.Scene.avatar_export_setting_list
+
+    bpy.utils.unregister_class(AVTSETTING_OT_OpenOutputDir) # Unregister the new operator
+    bpy.utils.unregister_class(AVTSETTING_OT_SetExportMeshes)
+    bpy.utils.unregister_class(AVTSETTING_OT_ClearIncludeBones)
+    bpy.utils.unregister_class(AVTSETTING_OT_SetIncludeBones)
+    bpy.utils.unregister_class(AVTSETTING_OT_StartExportJob)
+    bpy.utils.unregister_class(AVTSETTING_OT_DeleteItem)
+    bpy.utils.unregister_class(AVTSETTING_OT_NewItem)
+    bpy.utils.unregister_class(AvatarExporterPanel)
+    bpy.utils.unregister_class(AVTSETTING_UL_JobList)
+    bpy.utils.unregister_class(AVTSETTING_UL_MeshList)
+    bpy.utils.unregister_class(AVTSETTING_UL_BoneList)
+    bpy.utils.unregister_class(AvatarExportSetting)
+    bpy.utils.unregister_class(MeshList)
+    bpy.utils.unregister_class(BoneList)
 
 if __name__ == "__main__":
     register()
